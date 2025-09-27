@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stories-api
+  namespace: stories-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stories-api
+  template:
+    metadata:
+      labels:
+        app: stories-api
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/your-username/stories-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stories-secrets
+              key: secret-key
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stories-secrets
+              key: postgres-password
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: POSTGRES_PORT
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: REDIS_URL
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: stories-secrets
+              key: minio-access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stories-secrets
+              key: minio-secret-key
+        - name: AWS_S3_ENDPOINT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: AWS_S3_ENDPOINT_URL
+        - name: AWS_STORAGE_BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: AWS_STORAGE_BUCKET_NAME
+        - name: AWS_S3_REGION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: AWS_S3_REGION_NAME
+        - name: ALLOWED_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: ALLOWED_HOSTS
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: stories-config
+              key: CORS_ALLOWED_ORIGINS
+        livenessProbe:
+          httpGet:
+            path: /api/health/
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /api/health/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stories-api-service
+  namespace: stories-api
+spec:
+  selector:
+    app: stories-api
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stories-api-hpa
+  namespace: stories-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: stories-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

@@ -3,12 +3,34 @@ from django.contrib.auth import authenticate
 from .models import User
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
+    password = serializers.CharField(
+        write_only=True, 
+        min_length=8,
+        help_text="Password must be at least 8 characters long"
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+        help_text="Confirm your password"
+    )
     
     class Meta:
         model = User
         fields = ('email', 'password', 'password_confirm', 'first_name', 'last_name')
+        extra_kwargs = {
+            'email': {
+                'help_text': 'Valid email address (will be used as username)'
+            },
+            'first_name': {
+                'help_text': 'Your first name',
+                'required': False,
+                'allow_blank': True
+            },
+            'last_name': {
+                'help_text': 'Your last name',
+                'required': False,
+                'allow_blank': True
+            }
+        }
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -26,8 +48,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class UserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+    email = serializers.EmailField(
+        help_text="Your email address"
+    )
+    password = serializers.CharField(
+        help_text="Your password"
+    )
     
     def validate(self, attrs):
         email = attrs.get('email')
@@ -49,3 +75,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'email', 'first_name', 'last_name', 'created_at')
         read_only_fields = ('id', 'email', 'created_at')
+        extra_kwargs = {
+            'first_name': {
+                'help_text': 'Your first name',
+                'required': False,
+                'allow_blank': True
+            },
+            'last_name': {
+                'help_text': 'Your last name',
+                'required': False,
+                'allow_blank': True
+            }
+        }
